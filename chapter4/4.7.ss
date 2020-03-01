@@ -1,0 +1,17 @@
+;4.7
+(define (eval47 exp env)
+    (cond ((let? exp) (eval47 (let-combination exp) env))
+          ((let*? exp) (eval47 (let*->nested-lets exp) env))))
+(define (last-let-defn? defn) (null? (cdr defn)))
+(define (make-let defn body)
+    (cons 'let (cons defn body)))
+(define (let*->nested-lets exp)
+    (let ((defn (let-defn exp))
+          (body (let-body exp)))
+        (define (iter defns)
+            (if (last-let-defn? defns)
+                (make-let defns body)
+                (make-let 
+                    (list (car defns))
+                    (list (iter (cdr defns))))))
+        (iter defn)))
