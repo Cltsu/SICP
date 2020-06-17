@@ -1,0 +1,77 @@
+(define operatin-table (make-table))
+(define get (operation-table 'lookup-proc))
+(define put (operation-table 'insert-proc!))
+(define (deriv exp var)
+    (cond ((number? exp) 0)
+          ((variable? exp) (if (same-variable? exp var) 1 0))
+          (else ((get 'deriv (operator exp)) (operands exp)
+                                             var))))
+(define (operator exp) (car exp))
+(define (operands exp) (cdr exp))
+(define (sum-package)
+    (define (make-sum s1 s2) (list s1 s2))
+    (define (addend s) (car s))
+    (define (augend s) (cadr s))
+    (define (deriv exp var)
+        (make-sum (deriv (addend exp) var)
+                  (deriv (augend exp) var)))
+
+    (define (tag s) (cons '+ s))
+    (put 'addend '+ addend)
+    (put 'augend '+ augend)
+    (put 'make-sum '+ (lambda (s1 s2) (tag (make-sum s1 s2))))
+    (put 'deriv '+ (lambda (exp var) (tag (deriv exp var))))
+    'done)
+(define (make-sum s1 s2)
+    ((get 'make-sum '+) s1 s2))
+(define (addend s) ((get 'addend '+) (contents s)))
+(define (augend s) ((get 'augend '+) (contens s)))
+
+(define (mul-package)
+    (define (make-mul m1 m2) (list m1 m2))
+    (define (muler m) (car m))
+    (define (mult m) (cadr m))
+    (define (deriv exp var)
+        (make-sum
+            (make-mul (muler exp)
+                      (deriv (mult exp) var))
+            (make-mul (mult exp)
+                      (deriv (muler exp) var))))
+    (define (tag m) (cons '* m))
+    (put 'muler '* muler)
+    (put 'mult '* mult)
+    (put 'make-mul '* (lambda (m1 m2) (tag (make-mul m1 m2))))
+    (put 'deriv '*
+        (lambda (exp var) (tag (deriv exp var))))
+    'done)
+(define (make-mul m1 m2)
+    ((get 'make-mul '*) m1 m2))
+(define (muler m) ((get 'muler '* ) (contents m)))
+(define (mult m) ((get 'mult '*) (contents m)))
+
+(define (number-package)
+    (define (make-number n) (list n))
+    (define (number n) (car n))
+    (define (deriv n) (make-number 0))
+    
+    (define (tag n) (cons 'n n))
+    (put 'make-number 'n make-number)
+    (put 'number 'n number)
+    (put 'deriv 'n (lambda (n var) (tag (deriv n))))
+    'done)
+;2.75
+(define (make-from-mag-ang m a)
+    (define (dispatch op)
+        (cond ((eq? op 'real-part) (* m (cos a)))
+              ((eq? op 'imag-part) (* m (sin a)))
+              ((eq? op 'magitude) m)
+              ((eq? op 'angle) a)
+              (else (error "unkown op" op))))
+    dispatch)
+;2.76
+;加入新类型：显示分派：增加底层实现，通用性操作增加类型
+;           数据导向：只用写个新类型package包
+;           消息传递：只用写个新的构造函数
+;加入新操作：显示分派：每个类型增加操作，实现一个通用型操作
+;           数据导向：在每个package包增加各自的实现，实现一个通用型操作
+;           消息传递：在每个构造函数增加各自的实现
